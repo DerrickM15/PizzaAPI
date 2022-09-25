@@ -9,6 +9,7 @@ conn = sqlite3.connect('pizza_users.db', check_same_thread=False)
 cur = conn.cursor()
 
 # Create initial db
+
 conn.execute('''CREATE TABLE IF NOT EXISTS users
          (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
          name TEXT NOT NULL,
@@ -18,6 +19,7 @@ conn.execute('''CREATE TABLE IF NOT EXISTS users
          city TEXT, 
          state TEXT, 
          zipcode);''')
+
 conn.close()
 
 # Register user
@@ -91,6 +93,17 @@ def login():
         return json_dump, 400
 
 # TODO: Alter user data
+
+# TODO: Order 
+@app.route('/order', methods=['POST'])
+def order():
+    # TODO: Repeat order option
+    # TODO: Unsuccesful Order case
+    # TODO: Successful Order case, provide order and price
+    data_set = {'Message:': "Order Received", 'Timestamp': time.time()}
+    json_dump = json.dumps(data_set)
+    return json_dump, 400
+    return 
 
 # TODO: Scrap all of this and replace it with something better
 @app.route('/menu', methods=['GET'])
