@@ -1,6 +1,7 @@
-from flask import Flask, request
+from flask import Flask, request, session
 import json, time
 import sqlite3
+from flask_login import LoginManager, UserMixin
 import argon2, binascii
 
 
@@ -13,7 +14,8 @@ cur = conn.cursor()
 conn.execute('''CREATE TABLE IF NOT EXISTS users
          (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
          name TEXT NOT NULL,
-         email TEXT UNIQUE NOT NULL,
+         username TEXT UNIQUE NOT NULL, 
+         email TEXT NOT NULL,
          password TEXT NOT NULL, 
          address CHAR(50),
          city TEXT, 
@@ -24,10 +26,18 @@ conn.close()
 
 # Register user
 app = Flask(__name__)
+
+# Initialize Login Functionality
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+app.secret_key = '66be511b8e43d6231f3935be5ce3064b332b6299fc667ead18726755c515d10b192b9bdd22ab9ed4d12e236c78afcb9a393ec15f71bbf5dc987d54727823bcbf'
+
 @app.route('/register', methods=['POST'])
 def register(): 
     request_data = request.get_json()
     user_name = request_data.get('Name')
+    user_username = request_data.get('Username')
     user_email = request_data.get('Email')
     user_password = request_data.get('Password')
     user_address = request_data.get('Address')
@@ -46,11 +56,11 @@ def register():
     cur = conn.cursor()
     # Insert user data into database and handle errors
     try: 
-        conn.execute('''INSERT INTO users(name, email, password, address, city, state, zipcode) VALUES(?, ?, ?, ?, ?, ?, ?)''', (user_name, user_email, user_password, user_address, user_city, user_state, user_zip,))
+        conn.execute('''INSERT INTO users(name, username, email, password, address, city, state, zipcode) VALUES(?, ?, ?, ?, ?, ?, ?, ?)''', (user_name, user_username, user_email, user_password, user_address, user_city, user_state, user_zip,))
         conn.commit()
     except sqlite3.IntegrityError as e:
-        if str(e) == "UNIQUE constraint failed: users.email":
-            return "Error: Email already exists", 400
+        if str(e) == "UNIQUE constraint failed: users.username":
+            return "Error: Username already exists", 400
         elif str(e) == "NOT NULL constraint failed: users.name":
             return "Error: Name must be included", 400
         elif str(e) == "NOT NULL constraint failed: users.email":
@@ -65,16 +75,17 @@ def register():
     json_dump = json.dumps(data_set)
     return json_dump, 201
 
+
 # Login
 @app.route('/login', methods=['POST'])
 def login():
     request_data = request.get_json()
-    user_email = request_data.get('Email')
+    user_username = request_data.get('Username')
     user_password = request_data.get('Password')
     # Establish connection to the DB and retrieve hashed password
     conn = sqlite3.connect('pizza_users.db')
     cur = conn.cursor()
-    cur.execute('''SELECT password FROM users WHERE email=?''', (user_email,))
+    cur.execute('''SELECT password FROM users WHERE username=?''', (user_username,))
     # Put hash params back onto hashed password
     hash_prefix = "$argon2id$v=19$m=32,t=4,p=1$"
     hash = hash_prefix + "".join(cur.fetchone())
@@ -83,7 +94,7 @@ def login():
         time_cost=4, memory_cost=2**5, parallelism=1, hash_len=32, salt_len=16)
     try:
         argon2Hasher.verify(hash, user_password)
-        data_set = {'Message:': 'User Login Successful', 'Timestamp': time.time()}
+        data_set = {'Message:': f'{user_username} logged in successfully', 'Timestamp': time.time()}
         json_dump = json.dumps(data_set)
         # TODO: learn about the authentication token nonsense and put it here
         return json_dump
