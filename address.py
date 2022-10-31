@@ -14,7 +14,7 @@ class Address(Base):
     state=Column(String)
     zipcode=Column(String)
     user_id=Column(Integer, ForeignKey('users.id'))
-    user = relationship("User", backref=backref("address", uselist=False)) #back_populates="address")
+    user = relationship("User", backref=backref("address", uselist=False)) #back_populates="address"
     
 
     def __init__(self, address, city, state, zipcode, user):

@@ -2,7 +2,7 @@ from sqlalchemy import  Column, String, Integer
 from sqlalchemy.orm import relationship
 import pydantic
 from pydantic import BaseModel
-
+import typing
 
 from base import Base
 
@@ -34,8 +34,19 @@ class UserRequest(BaseModel):
     zipcode: str
 
 class UserResponseModel(BaseModel):
-    id: int
-    username: str
+    id: int = None
+    username: str = None
 
     class Config:
         orm_mode = True
+
+class UserUpdate(BaseModel):
+    id: int = None
+    name: str = None
+    username: str = None
+    email: str = None
+    password: str = None
+    address: str = None
+    city: str = None
+    state: str = None
+    zipcode: str = None

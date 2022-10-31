@@ -1,7 +1,7 @@
 from flask import Flask, request
 import json, time
 from base import Session, Base, engine
-from users import User, UserRequest, UserResponseModel
+from users import User, UserRequest, UserResponseModel, UserUpdate
 from address import Address
 import sqlalchemy
 import sqlite3
@@ -10,7 +10,13 @@ from pydantic import ValidationError
 
 app = Flask(__name__)
 
-# Register user
+# hash passwords
+def hash_password(password): 
+    argon2Hasher = argon2.PasswordHasher(
+        time_cost=4, memory_cost=2**5, parallelism=1, hash_len=32, salt_len=16)
+    hash_prefix = "$argon2id$v=19$m=32,t=4,p=1$"
+    hash = argon2Hasher.hash(password).replace(hash_prefix, "")
+    return hash
 
 @app.route('/register', methods=['POST'])
 def register(): 
@@ -18,12 +24,7 @@ def register():
     user_request = UserRequest(**{ k.lower():v for (k,v) in request_data.items()})
 
     # Hash password
-    argon2Hasher = argon2.PasswordHasher(
-        time_cost=4, memory_cost=2**5, parallelism=1, hash_len=32, salt_len=16)
-    hash_prefix = "$argon2id$v=19$m=32,t=4,p=1$"
-    hash = argon2Hasher.hash(user_request.password).replace(hash_prefix, "")
-    user_request.password = hash
-
+    user_request.password = hash_password(user_request.password)
     # Insert user data into database and handle errors
     try:
         session = Session()
@@ -42,6 +43,38 @@ def register():
     UserResponse = UserResponseModel.from_orm(user)
     session.close()
     return UserResponse.dict(), 201
+
+@app.route('/update', methods=['POST'])
+def userupdate():
+    session = Session()
+    request_data = request.get_json()
+    data = UserUpdate(**{ k.lower():v for (k,v) in request_data.items()})
+    if data.id is None: 
+        return "Must provide a User ID", 400
+    else: 
+        DatabaseUser = session.query(User).filter_by(id=data.id).first()
+        DatabaseAddress = session.query(Address).filter_by(id=data.id).first()
+        if data.name is not None: 
+            DatabaseUser.name= data.name
+        if data.username is not None: 
+            DatabaseUser.username= data.username
+        if data.email is not None: 
+            DatabaseUser.email= data.email
+        if data.password is not None: 
+            DatabaseUser.password= hash_password(data.password)
+        if data.address is not None: 
+            DatabaseAddress.address= data.address
+        if data.city is not None: 
+            DatabaseAddress.city= data.city
+        if data.state is not None: 
+            DatabaseAddress.state= data.state
+        if data.zipcode is not None: 
+            DatabaseAddress.zipcode= data.zipcode
+        session.add(DatabaseUser)
+        FoundUser = UserResponseModel.from_orm(DatabaseUser)
+        session.commit()
+        session.close()
+        return FoundUser.dict()
     
 
 
