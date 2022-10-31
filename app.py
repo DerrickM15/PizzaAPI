@@ -1,11 +1,12 @@
 from flask import Flask, request
 import json, time
 from base import Session, Base, engine
-from users import User
+from users import User, UserRequest, UserResponseModel
 from address import Address
 import sqlalchemy
 import sqlite3
 import argon2
+from pydantic import ValidationError
 
 app = Flask(__name__)
 
@@ -14,28 +15,20 @@ app = Flask(__name__)
 @app.route('/register', methods=['POST'])
 def register(): 
     request_data = request.get_json()
-    user_name = request_data.get('Name')
-    user_username = request_data.get('Username')
-    user_email = request_data.get('Email')
-    user_password = request_data.get('Password')
-    user_address = request_data.get('Address')
-    user_city = request_data.get('City')
-    user_state = request_data.get('State')
-    user_zip = request_data.get('Zipcode')
+    user_request = UserRequest(**{ k.lower():v for (k,v) in request_data.items()})
 
     # Hash password
-
     argon2Hasher = argon2.PasswordHasher(
         time_cost=4, memory_cost=2**5, parallelism=1, hash_len=32, salt_len=16)
     hash_prefix = "$argon2id$v=19$m=32,t=4,p=1$"
-    hash = argon2Hasher.hash(user_password).replace(hash_prefix, "")
-    user_password = hash
+    hash = argon2Hasher.hash(user_request.password).replace(hash_prefix, "")
+    user_request.password = hash
 
     # Insert user data into database and handle errors
     try:
         session = Session()
-        user = User(user_name, user_username, user_email, user_password)
-        address = Address(user_address, user_city, user_state, user_zip, user)
+        user = User(user_request.name, user_request.username, user_request.email, user_request.password)
+        address = Address(user_request.address, user_request.city, user_request.state, user_request.zipcode, user)
         session.add(user)
         session.add(address)
         session.commit()
@@ -43,21 +36,12 @@ def register():
         print(str(e))
         if str(e).split('\n', 1)[0] == "(sqlite3.IntegrityError) UNIQUE constraint failed: users.username":
             return "Error: Username already exists", 400
-        elif str(e).split('\n', 1)[0] == "(sqlite3.IntegrityError) NOT NULL constraint failed: users.name":
-            return "Error: Name must be included", 400
-        elif str(e).split('\n', 1)[0] == "(sqlite3.IntegrityError) NOT NULL constraint failed: users.username":
-            return "Error: username must be included", 400
-        elif str(e).split('\n', 1)[0] == "(sqlite3.IntegrityError) NOT NULL constraint failed: users.password":
-            return "Error: password must be included", 400
+    except ValidationError as e: 
+        return e, 400
 
-
-    # user_created = cur.execute('''SELECT name FROM users WHERE name=?''', (user_name,))
-    # user_created = cur.fetchone()
-
-    data_set = {'User Created:': f'{user.name}', 'Timestamp': time.time()}
-    json_dump = json.dumps(data_set)
+    UserResponse = UserResponseModel.from_orm(user)
     session.close()
-    return json_dump, 201
+    return UserResponse.dict(), 201
     
 
 

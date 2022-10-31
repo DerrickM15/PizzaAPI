@@ -1,5 +1,8 @@
 from sqlalchemy import  Column, String, Integer
 from sqlalchemy.orm import relationship
+import pydantic
+from pydantic import BaseModel
+
 
 from base import Base
 
@@ -19,3 +22,20 @@ class User(Base):
         self.username = username
         self.email = email
         self.password = password
+
+class UserRequest(BaseModel):
+    name: str
+    username: str
+    email: str
+    password: str
+    address: str
+    city: str
+    state: str
+    zipcode: str
+
+class UserResponseModel(BaseModel):
+    id: int
+    username: str
+
+    class Config:
+        orm_mode = True
