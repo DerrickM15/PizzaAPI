@@ -21,16 +21,16 @@ jwt = JWTManager(app)
 
 
 # hash passwords
-def hash_password(password): 
+def hash_password(password):
     argon2Hasher = argon2.PasswordHasher(
-        time_cost=4, memory_cost=2**5, parallelism=1, hash_len=32, salt_len=16)
+        time_cost=4, memory_cost=2 ** 5, parallelism=1, hash_len=32, salt_len=16)
     hash_prefix = "$argon2id$v=19$m=32,t=4,p=1$"
     hash = argon2Hasher.hash(password).replace(hash_prefix, "")
     return hash
 
 
 @app.route('/register', methods=['POST'])
-def register(): 
+def register():
     request_data = request.get_json()
     user_request = UserRequest(**{k.lower(): v for (k, v) in request_data.items()})
 
@@ -48,7 +48,7 @@ def register():
         print(str(e))
         if str(e).split('\n', 1)[0] == "(sqlite3.IntegrityError) UNIQUE constraint failed: users.username":
             return "Error: Username already exists", 400
-    except ValidationError as e: 
+    except ValidationError as e:
         return e, 400
 
     user_response = UserResponseModel.from_orm(user)
@@ -60,8 +60,8 @@ def register():
 def userupdate():
     session = Session()
     request_data = request.get_json()
-    data = UserUpdate(**{ k.lower():v for (k,v) in request_data.items()})
-    if data.id is None: 
+    data = UserUpdate(**{k.lower(): v for (k, v) in request_data.items()})
+    if data.id is None:
         return "Must provide a User ID", 400
     else:
         database_user = session.query(User).filter_by(id=data.id).first()
