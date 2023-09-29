@@ -3,3 +3,4 @@ __pycache__
 node_modules
 pizza_users.db
 env/
+test_backend
